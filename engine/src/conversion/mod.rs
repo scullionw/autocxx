@@ -28,6 +28,7 @@ use autocxx_parser::TypeConfig;
 pub(crate) use codegen_cpp::CppCodeGenerator;
 pub(crate) use codegen_cpp::CppCodegenResults;
 pub(crate) use convert_error::ConvertError;
+use proc_macro2::TokenStream;
 use syn::{Item, ItemMod};
 
 use crate::UnsafePolicy;
@@ -62,6 +63,7 @@ pub(crate) struct BridgeConverter<'a> {
 pub(crate) struct CodegenResults {
     pub(crate) rs: Vec<Item>,
     pub(crate) cpp: Option<CppCodegenResults>,
+    pub(crate) bridge_mod: TokenStream,
 }
 
 impl<'a> BridgeConverter<'a> {
@@ -133,12 +135,12 @@ impl<'a> BridgeConverter<'a> {
                 // And finally pass them to the code gen phases, which outputs
                 // code suitable for cxx to consume.
                 let cpp = CppCodeGenerator::generate_cpp_code(inclusions, &analyzed_apis)?;
-                let rs = RsCodeGenerator::generate_rs_code(
+                let (rs, bridge_mod) = RsCodeGenerator::generate_rs_code(
                     analyzed_apis,
                     self.include_list,
                     bindgen_mod,
                 );
-                Ok(CodegenResults { rs, cpp })
+                Ok(CodegenResults { rs, cpp, bridge_mod })
             }
         }
     }
