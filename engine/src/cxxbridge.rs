@@ -42,6 +42,7 @@ impl ToTokens for CxxBridge {
 impl CppBuildable for CxxBridge {
     fn generate_h_and_cxx(&self) -> Result<GeneratedCpp, cxx_gen::Error> {
         let fp = do_cxx_cpp_generation(self.tokens.clone())?;
+        log::info!("cxx making filee");
         Ok(GeneratedCpp(vec![fp]))
     }
 }

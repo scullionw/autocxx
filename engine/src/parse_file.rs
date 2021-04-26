@@ -88,7 +88,7 @@ fn parse_file_contents(source: syn::File) -> Result<ParsedFile, ParseError> {
                 if itm
                     .attrs
                     .iter()
-                    .any(|attr| attr.path.to_token_stream().to_string() == "cxx::bridge") =>
+                    .any(|attr| attr.path.to_token_stream().to_string() == "cxx :: bridge") =>
             {
                 Segment::Cxx(CxxBridge::from(itm))
             }
@@ -133,7 +133,7 @@ impl ParsedFile {
         })
     }
 
-    pub fn get_autocxxes_mut(&mut self) -> impl Iterator<Item = &mut IncludeCppEngine> {
+    fn get_autocxxes_mut(&mut self) -> impl Iterator<Item = &mut IncludeCppEngine> {
         self.0.iter_mut().filter_map(|s| match s {
             Segment::Autocxx(includecpp) => Some(includecpp),
             _ => None,
