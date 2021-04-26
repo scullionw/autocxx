@@ -4971,6 +4971,40 @@ fn test_two_mods() {
     do_run_test_manual("", hdr, rs, &[], None).unwrap();
 }
 
+#[test]
+fn test_manual_bridge() {
+    let hdr = indoc! {"
+        #include <cstdint>
+        inline uint32_t give_int() {
+            return 5;
+        }
+        inline uint32_t give_int2() {
+            return 5;
+        }
+    "};
+    let rs = |hdr| {
+        let hexathorpe = Token![#](Span::call_site());
+        quote! {
+            autocxx::include_cpp! {
+                #hexathorpe include #hdr
+                safety!(unsafe_ffi)
+                generate!("give_int")
+            }
+            #[cxx::bridge]
+            mod ffi2 {
+                extern "C" {
+                    fn give_int2() -> u32;
+                }
+            }
+            fn main() {
+                assert_eq!(ffi::give_int(), 5);
+                assert_eq!(unsafe { ffi2::give_int2() }, 5);
+            }
+        }
+    };
+    do_run_test_manual("", hdr, rs, &[], None).unwrap();
+}
+
 // Yet to test:
 // 6. Ifdef
 // 7. Out param pointers
