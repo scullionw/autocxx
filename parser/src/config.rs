@@ -13,11 +13,11 @@
 // limitations under the License.
 
 use proc_macro2::Span;
-use syn::Result as ParseResult;
 use syn::{
     parse::{Parse, ParseStream},
     Token,
 };
+use syn::{Ident, Result as ParseResult};
 
 use crate::type_config::TypeConfig;
 
@@ -54,6 +54,7 @@ impl Parse for UnsafePolicy {
 
 #[derive(Hash, Debug)]
 pub struct IncludeCppConfig {
+    pub mod_name: Option<Ident>,
     pub inclusions: Vec<String>,
     pub exclude_utilities: bool,
     pub unsafe_policy: UnsafePolicy,
@@ -73,6 +74,7 @@ impl Parse for IncludeCppConfig {
         let mut exclude_utilities = false;
         let mut type_config = TypeConfig::new();
         let mut unsafe_policy = UnsafePolicy::AllFunctionsUnsafe;
+        let mut mod_name = None;
 
         while !input.is_empty() {
             let has_hexathorpe = input.parse::<Option<syn::Token![#]>>()?.is_some();
@@ -100,6 +102,11 @@ impl Parse for IncludeCppConfig {
                     type_config.add_to_blocklist(generate.value());
                 } else if ident == "parse_only" {
                     parse_only = true;
+                } else if ident == "name" {
+                    let args;
+                    syn::parenthesized!(args in input);
+                    let ident: syn::Ident = args.parse()?;
+                    mod_name = Some(ident);
                 } else if ident == "exclude_utilities" {
                     exclude_utilities = true;
                 } else if ident == "safety" {
@@ -122,6 +129,7 @@ impl Parse for IncludeCppConfig {
         }
 
         Ok(IncludeCppConfig {
+            mod_name,
             inclusions,
             exclude_utilities,
             unsafe_policy,

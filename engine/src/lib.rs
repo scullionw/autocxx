@@ -41,6 +41,7 @@ use std::{
 };
 use std::{fs::File, io::prelude::*, path::Path, process::Command};
 use tempfile::NamedTempFile;
+use types::make_ident;
 
 use quote::ToTokens;
 use syn::Result as ParseResult;
@@ -359,6 +360,13 @@ impl IncludeCppEngine {
         if self.config.type_config.allowlist_is_empty() {
             return Err(Error::NoGenerationRequested);
         }
+        let mod_name = self
+            .config
+            .mod_name
+            .iter()
+            .cloned()
+            .next()
+            .unwrap_or(make_ident("ffi"));
 
         let mut builder = self.make_bindgen_builder(&inc_dirs, &extra_clang_args);
         if let Some(dep_recorder) = dep_recorder {
@@ -388,7 +396,7 @@ impl IncludeCppEngine {
             #[allow(dead_code)]
             #[allow(non_upper_case_globals)]
             #[allow(non_camel_case_types)]
-            mod ffi {
+            mod #mod_name {
             }
         };
         new_bindings.content.as_mut().unwrap().1.append(&mut items);
