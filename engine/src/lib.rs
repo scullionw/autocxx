@@ -17,6 +17,7 @@
 // limitations under the License.
 
 mod conversion;
+mod cxxbridge;
 mod known_types;
 mod parse_callbacks;
 mod parse_file;
@@ -412,6 +413,39 @@ impl IncludeCppEngine {
         }));
         Ok(())
     }
+
+    /// Return the include directories used for this include_cpp invocation.
+    fn include_dirs(&self) -> impl Iterator<Item = &PathBuf> {
+        match &self.state {
+            State::Generated(gen_results) => gen_results.inc_dirs.iter(),
+            _ => panic!("Must call generate() before include_dirs()"),
+        }
+    }
+
+    fn dump_header_if_so_configured(
+        &self,
+        header: &str,
+        inc_dirs: &[PathBuf],
+        extra_clang_args: &[&str],
+    ) {
+        if let Ok(output_path) = std::env::var("AUTOCXX_PREPROCESS") {
+            let input = format!("/*\nautocxx config:\n\n{:?}\n\nend autocxx config.\nautocxx preprocessed input:\n*/\n\n{}", self.config, header);
+            let mut tf = NamedTempFile::new().unwrap();
+            write!(tf, "{}", input).unwrap();
+            let tp = tf.into_temp_path();
+            preprocess(&tp, &PathBuf::from(output_path), inc_dirs, extra_clang_args).unwrap();
+        }
+    }
+}
+
+pub fn do_cxx_cpp_generation(rs: TokenStream2) -> Result<CppFilePair, cxx_gen::Error> {
+    let opt = cxx_gen::Opt::default();
+    let cxx_generated = cxx_gen::generate_header_and_cc(rs, &opt)?;
+    Ok(CppFilePair {
+        header: cxx_generated.header,
+        header_name: "cxxgen.h".to_string(),
+        implementation: cxx_generated.implementation,
+    })
 }
 
 impl CppBuildable for IncludeCppEngine {
@@ -423,14 +457,7 @@ impl CppBuildable for IncludeCppEngine {
             State::NotGenerated => panic!("Call generate() first"),
             State::Generated(gen_results) => {
                 let rs = gen_results.item_mod.to_token_stream();
-                let opt = cxx_gen::Opt::default();
-                let cxx_generated = cxx_gen::generate_header_and_cc(rs, &opt)?;
-                files.push(CppFilePair {
-                    header: cxx_generated.header,
-                    header_name: "cxxgen.h".to_string(),
-                    implementation: cxx_generated.implementation,
-                });
-
+                files.push(do_cxx_cpp_generation(rs)?);
                 match gen_results.additional_cpp_generator {
                     None => {}
                     Some(ref additional_cpp) => {
@@ -448,33 +475,6 @@ impl CppBuildable for IncludeCppEngine {
             }
         };
         Ok(GeneratedCpp(files))
-    }
-
-    /// Return the include directories used for this include_cpp invocation.
-    fn include_dirs(&self) -> &Vec<PathBuf> {
-        match &self.state {
-            State::Generated(gen_results) => &gen_results.inc_dirs,
-            _ => panic!("Must call generate() before include_dirs()"),
-        }
-    }
-
-}
-
-impl IncludeCppEngine {
-
-    fn dump_header_if_so_configured(
-        &self,
-        header: &str,
-        inc_dirs: &[PathBuf],
-        extra_clang_args: &[&str],
-    ) {
-        if let Ok(output_path) = std::env::var("AUTOCXX_PREPROCESS") {
-            let input = format!("/*\nautocxx config:\n\n{:?}\n\nend autocxx config.\nautocxx preprocessed input:\n*/\n\n{}", self.config, header);
-            let mut tf = NamedTempFile::new().unwrap();
-            write!(tf, "{}", input).unwrap();
-            let tp = tf.into_temp_path();
-            preprocess(&tp, &PathBuf::from(output_path), inc_dirs, extra_clang_args).unwrap();
-        }
     }
 }
 

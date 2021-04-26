@@ -154,10 +154,8 @@ pub(crate) fn build_with_existing_parsed_file(
     let mut builder = cc::Build::new();
     builder.cpp(true);
     let mut generated_rs = Vec::new();
+    builder.includes(parsed_file.include_dirs());
     for include_cpp in parsed_file.get_cpp_buildables() {
-        for inc_dir in include_cpp.include_dirs() {
-            builder.include(inc_dir);
-        }
         let generated_code = include_cpp
             .generate_h_and_cxx()
             .map_err(BuilderError::InvalidCxx)?;

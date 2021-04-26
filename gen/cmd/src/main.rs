@@ -206,7 +206,7 @@ fn main() {
         );
     }
     if matches.is_present("gen-rs-include") {
-        let autocxxes = parsed_file.get_cpp_buildables();
+        let autocxxes = parsed_file.get_rs_buildables();
         let mut counter = 0usize;
         for include_cxx in autocxxes {
             let ts = include_cxx.generate_rs();

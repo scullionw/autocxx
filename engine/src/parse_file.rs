@@ -12,12 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{Error as EngineError, GeneratedCpp, IncludeCppEngine, RebuildDependencyRecorder};
+use crate::{
+    cxxbridge::CxxBridge, Error as EngineError, GeneratedCpp, IncludeCppEngine,
+    RebuildDependencyRecorder,
+};
 use proc_macro2::TokenStream;
 use quote::ToTokens;
 use std::{fmt::Display, io::Read, path::PathBuf};
 use std::{panic::UnwindSafe, path::Path, rc::Rc};
-use syn::{Item, ItemMod};
+use syn::Item;
 
 /// Errors which may occur when parsing a Rust source file to discover
 /// and interpret include_cxx macros.
@@ -87,7 +90,7 @@ fn parse_file_contents(source: syn::File) -> Result<ParsedFile, ParseError> {
                     .iter()
                     .any(|attr| attr.path.to_token_stream().to_string() == "cxx::bridge") =>
             {
-                Segment::Cxx(itm)
+                Segment::Cxx(CxxBridge::from(itm))
             }
             _ => Segment::Other(item),
         });
@@ -104,13 +107,12 @@ pub struct ParsedFile(Vec<Segment>);
 #[allow(clippy::large_enum_variant)]
 enum Segment {
     Autocxx(IncludeCppEngine),
-    Cxx(ItemMod),
+    Cxx(CxxBridge),
     Other(Item),
 }
 
 pub trait CppBuildable {
     fn generate_h_and_cxx(&self) -> Result<GeneratedCpp, cxx_gen::Error>;
-    fn include_dirs(&self) -> &Vec<PathBuf>;
 }
 
 impl ParsedFile {
@@ -126,6 +128,7 @@ impl ParsedFile {
     pub fn get_cpp_buildables(&self) -> impl Iterator<Item = &dyn CppBuildable> {
         self.0.iter().filter_map(|s| match s {
             Segment::Autocxx(includecpp) => Some(includecpp as &dyn CppBuildable),
+            Segment::Cxx(cxxbridge) => Some(cxxbridge as &dyn CppBuildable),
             _ => None,
         })
     }
@@ -135,6 +138,16 @@ impl ParsedFile {
             Segment::Autocxx(includecpp) => Some(includecpp),
             _ => None,
         })
+    }
+
+    pub fn include_dirs(&self) -> impl Iterator<Item = &PathBuf> {
+        self.0
+            .iter()
+            .filter_map(|s| match s {
+                Segment::Autocxx(includecpp) => Some(includecpp.include_dirs().into_iter()),
+                _ => None,
+            })
+            .flatten()
     }
 
     pub fn resolve_all(

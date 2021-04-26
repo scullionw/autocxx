@@ -4992,13 +4992,13 @@ fn test_manual_bridge() {
             }
             #[cxx::bridge]
             mod ffi2 {
-                extern "C" {
+                unsafe extern "C++" {
                     fn give_int2() -> u32;
                 }
             }
             fn main() {
                 assert_eq!(ffi::give_int(), 5);
-                assert_eq!(unsafe { ffi2::give_int2() }, 5);
+                assert_eq!(ffi2::give_int2(), 5);
             }
         }
     };
