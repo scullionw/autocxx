@@ -4992,8 +4992,8 @@ fn test_manual_bridge() {
             }
             #[cxx::bridge]
             mod ffi2 {
-                include!(#hdr);
                 unsafe extern "C++" {
+                    include!(#hdr);
                     fn give_int2() -> u32;
                 }
             }
