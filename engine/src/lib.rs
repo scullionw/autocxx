@@ -32,6 +32,7 @@ mod integration_tests;
 use autocxx_parser::{IncludeCppConfig, UnsafePolicy};
 use conversion::{BridgeConverter, CppCodegenResults};
 use parse_callbacks::AutocxxParseCallbacks;
+use parse_file::CppBuildable;
 use proc_macro2::TokenStream as TokenStream2;
 use std::{
     collections::hash_map::DefaultHasher,
@@ -411,9 +412,11 @@ impl IncludeCppEngine {
         }));
         Ok(())
     }
+}
 
+impl CppBuildable for IncludeCppEngine {
     /// Generate C++-side bindings for these APIs. Call `generate` first.
-    pub fn generate_h_and_cxx(&self) -> Result<GeneratedCpp, cxx_gen::Error> {
+    fn generate_h_and_cxx(&self) -> Result<GeneratedCpp, cxx_gen::Error> {
         let mut files = Vec::new();
         match &self.state {
             State::ParseOnly => panic!("Cannot generate C++ in parse-only mode"),
@@ -448,12 +451,16 @@ impl IncludeCppEngine {
     }
 
     /// Return the include directories used for this include_cpp invocation.
-    pub fn include_dirs(&self) -> &Vec<PathBuf> {
+    fn include_dirs(&self) -> &Vec<PathBuf> {
         match &self.state {
             State::Generated(gen_results) => &gen_results.inc_dirs,
             _ => panic!("Must call generate() before include_dirs()"),
         }
     }
+
+}
+
+impl IncludeCppEngine {
 
     fn dump_header_if_so_configured(
         &self,
